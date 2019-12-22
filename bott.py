@@ -7,7 +7,7 @@ import re
 conn = sqlite3.connect("cinemabot.db", check_same_thread=False)
 cursor = conn.cursor()
 
-bot = telebot.TeleBot('973467468:AAExVJm6ez5p_3sJ8AqYqiUmoDDTiK4_OOc')
+bot = telebot.TeleBot('')
 
 keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True)
 keyboard1.row('хочу смотреть киношку', 'хочу выбрать кинотеатр')
