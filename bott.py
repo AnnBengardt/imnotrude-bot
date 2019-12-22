@@ -7,7 +7,7 @@ import re
 conn = sqlite3.connect("cinemabot.db", check_same_thread=False)
 cursor = conn.cursor()
 
-bot = telebot.TeleBot('')
+bot = telebot.TeleBot('973467468:AAExVJm6ez5p_3sJ8AqYqiUmoDDTiK4_OOc')
 
 keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True)
 keyboard1.row('хочу смотреть киношку', 'хочу выбрать кинотеатр')
@@ -24,8 +24,22 @@ keyboard_films2.add('в меню', 'рандомное', 'по жанрам', '�
 keyboard_genres = telebot.types.ReplyKeyboardMarkup(True, True)
 keyboard_genres.add('в меню', 'а вот это где смотреть?')
 brands = [elem[0] for elem in cursor.execute("select name from brand").fetchall()]
-genres = set([elem[3].lower() for elem in cursor.execute("select * from cinemas")])
-films = {elem[1] : elem [0] for elem in cursor.execute("select * from cinemas")}
+genres = []
+for elem in cursor.execute("select * from cinemas"):
+    lst = elem[3].lower().split()
+    for i in lst:
+        if i[-1] == ',':
+            genres.append(i[:-1])
+        else:
+            genres.append(i)
+genres = set(genres)
+genres2 = [elem[3].lower().split() for elem in cursor.execute("select * from cinemas")]
+films = {}
+for elem in cursor.execute("select * from cinemas"):
+    if elem[1][-1] == ' ':
+        films[elem[1][:-1]] = elem[0]
+    else:
+        films[elem[1]] = elem[0]
 last_hall_id = [0]
 last_cinema_id = [-1]
 
@@ -86,7 +100,7 @@ def send_text(message):
     elif message.text.lower() == 'пока':
         bot.send_message(message.chat.id, 'скатертью дорожка')
     elif message.text.lower() == 'хочу смотреть киношку':
-        bot.send_message(message.chat.id, 'в прокате как обычно ниче хорошего, зря ты сюда зашёл', reply_markup = keyboard_films)
+        bot.send_message(message.chat.id, 'жмякни кнопку или напиши точное название, попробую найти сеансик для тебя', reply_markup = keyboard_films)
     elif message.text.lower() == 'хочу выбрать кинотеатр':
         bot.send_message(message.chat.id, 'а гвоздей жареных не хочешь?', reply_markup=keyboard_halls)
     elif message.text.lower() == 'по брендам':
@@ -180,20 +194,29 @@ def send_text(message):
             else:
                 bot.send_message(message.chat.id, result)
         else:
-            bot.send_message(message.chat.id, 'негде')
+            bot.send_message(message.chat.id, 'нигде')
     elif message.text.lower() == "по жанрам":
         bot.send_message(message.chat.id, 'напиши жанр')
-    elif message.text in genres:
+    elif message.text.lower() in genres:
         result = ''
-        for elem in cursor.execute('select * from cinemas where genres =?', (message.text,)):
-            result = films_output(elem, result)
+        for genre in genres2:
+            film_genre = ''
+            if message.text.lower() in genre:
+                film_genre = ' '.join(genre)
+            if film_genre:
+                for elem in cursor.execute('select * from cinemas where genres =?', (film_genre,)):
+                    result = films_output(elem, result)
         if result:
-            bot.send_message(message.chat.id, result, reply_markup=keyboard_genres)
+            if len(result) > 4096:
+                for x in range(0, len(result), 4096):
+                    bot.send_message(message.chat.id, result[x:x + 4096])
+            else:
+                bot.send_message(message.chat.id, result, reply_markup=keyboard_genres)
         else:
             bot.send_message(message.chat.id, 'кажется, не знаю такого жанра')
     elif message.text.lower() == 'а вот это где смотреть?':
         bot.send_message(message.chat.id, 'а что именно?')
-    elif message.text in films:
+    elif message.text in films.keys():
         cinema_id = films[message.text]
         result = ''
         for elem in cursor.execute("select * from sessions where cinema_id =?", (cinema_id,)):
@@ -205,9 +228,9 @@ def send_text(message):
             else:
                 bot.send_message(message.chat.id, result, reply_markup=keyboard_films)
         else:
-            bot.send_message(message.chat.id, 'негде')
-
-
+            bot.send_message(message.chat.id, 'нигде')
+    else:
+        bot.send_message(message.chat.id, 'я тебя не понимат')
 
 
 bot.polling(none_stop=True, interval=0)
